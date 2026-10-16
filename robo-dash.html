@@ -1,0 +1,1688 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+	<title>ROBO-DASH // OMEGA PROTOCOL</title>
+	<style>
+		:root {
+			--neon-blue: #00f3ff;
+			--neon-pink: #ff0055;
+			--neon-yellow: #ffcc00;
+			--neon-green: #39ff14;
+			--bg-dark: #05050d;
+		}
+
+		* {
+			box-sizing: border-box;
+			user-select: none;
+			-webkit-user-select: none;
+			margin: 0;
+			padding: 0;
+		}
+
+		#game-wrapper, canvas, #touch-controls, .t-btn {
+			touch-action: none;
+		}
+
+		body, html {
+			width: 100%;
+			height: 100%;
+			overflow: hidden;
+			background-color: var(--bg-dark);
+			font-family: 'Courier New', Courier, monospace;
+			color: #fff;
+			display: flex;
+			justify-content: center;
+			align-items: center;
+		}
+
+		#game-wrapper {
+			position: relative;
+			width: 100%;
+			height: 100%;
+			display: flex;
+			justify-content: center;
+			align-items: center;
+			background: var(--bg-dark);
+			overflow: hidden;
+		}
+
+		#game-wrapper:fullscreen, #game-wrapper:-webkit-full-screen {
+			width: 100vw;
+			height: 100vh;
+		}
+
+		canvas {
+			display: block;
+			width: 100%;
+			height: 100%;
+			object-fit: contain;
+			image-rendering: pixelated;
+			image-rendering: crisp-edges;
+		}
+
+		.crt-overlay {
+			position: absolute;
+			top: 0; left: 0; width: 100%; height: 100%;
+			background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%),
+						linear-gradient(90deg, rgba(255, 0, 0, 0.02), rgba(0, 255, 0, 0.01), rgba(0, 0, 255, 0.02));
+			background-size: 100% 4px, 6px 100%;
+			pointer-events: none;
+			z-index: 10;
+			opacity: 1;
+			transition: opacity 0.3s;
+		}
+
+		.crt-overlay.disabled { opacity: 0; }
+
+		#ui-layer {
+			position: absolute;
+			top: 0; left: 0; width: 100%; height: 100%;
+			pointer-events: none;
+			z-index: 15;
+			display: flex;
+			flex-direction: column;
+			justify-content: space-between;
+			padding: 12px 18px;
+		}
+
+		.hud-top {
+			display: flex;
+			justify-content: space-between;
+			align-items: center;
+			font-size: 14px;
+			font-weight: bold;
+			text-shadow: 2px 2px 0px #000, 0 0 8px var(--neon-yellow);
+			letter-spacing: 1px;
+			color: var(--neon-yellow);
+		}
+
+		.hud-btn {
+			pointer-events: auto;
+			background: rgba(10, 10, 25, 0.85);
+			border: 2px solid var(--neon-blue);
+			color: var(--neon-blue);
+			padding: 6px 12px;
+			border-radius: 4px;
+			font-family: inherit;
+			font-weight: bold;
+			font-size: 13px;
+			cursor: pointer;
+			box-shadow: 0 0 8px rgba(0, 243, 255, 0.4);
+			display: flex;
+			align-items: center;
+			gap: 6px;
+		}
+
+		.hud-btn:active {
+			transform: scale(0.95);
+			background: var(--neon-blue);
+			color: #000;
+		}
+
+		#touch-controls {
+			position: absolute;
+			bottom: 15px;
+			left: 0;
+			width: 100%;
+			padding: 0 20px;
+			display: flex;
+			justify-content: space-between;
+			align-items: flex-end;
+			pointer-events: none;
+			z-index: 20;
+		}
+
+		.d-pad, .action-pad {
+			display: flex;
+			gap: 12px;
+			pointer-events: auto;
+		}
+
+		.t-btn {
+			width: 58px;
+			height: 58px;
+			background: rgba(0, 0, 0, 0.65);
+			border: 2px solid var(--neon-blue);
+			border-radius: 50%;
+			color: #fff;
+			font-size: 20px;
+			font-weight: bold;
+			display: flex;
+			justify-content: center;
+			align-items: center;
+			user-select: none;
+			box-shadow: 0 0 10px rgba(0, 243, 255, 0.3);
+			backdrop-filter: blur(4px);
+		}
+
+		.t-btn:active, .t-btn.active {
+			background: var(--neon-pink);
+			border-color: #fff;
+			box-shadow: 0 0 15px var(--neon-pink);
+		}
+
+		.overlay-menu {
+			position: absolute;
+			top: 0; left: 0; width: 100%; height: 100%;
+			background: rgba(10, 10, 20, 0.92);
+			backdrop-filter: blur(6px);
+			z-index: 30;
+			display: flex;
+			flex-direction: column;
+			justify-content: center;
+			align-items: center;
+			padding: 20px;
+			gap: 15px;
+			color: #fff;
+		}
+
+		.hidden { display: none !important; }
+
+		#introScreen {
+			position: absolute;
+			top: 0; left: 0; width: 100%; height: 100%;
+			background: radial-gradient(circle, #1a002c 0%, #05050d 100%);
+			z-index: 40;
+			display: flex;
+			flex-direction: column;
+			justify-content: center;
+			align-items: center;
+			cursor: pointer;
+			transition: opacity 0.5s;
+		}
+
+		.intro-title {
+			font-size: 34px;
+			font-weight: 900;
+			color: var(--neon-blue);
+			text-shadow: 0 0 15px var(--neon-blue), 4px 4px 0 var(--neon-pink);
+			letter-spacing: 3px;
+			text-align: center;
+			animation: glitch 2s infinite alternate;
+		}
+
+		.intro-sub {
+			font-size: 14px;
+			color: var(--neon-yellow);
+			text-shadow: 0 0 8px var(--neon-yellow);
+			margin-top: 5px;
+			letter-spacing: 2px;
+		}
+
+		.press-start {
+			margin-top: 45px;
+			font-size: 15px;
+			font-weight: bold;
+			color: #fff;
+			text-shadow: 0 0 10px var(--neon-green);
+			animation: blink 1s infinite;
+		}
+
+		@keyframes blink {
+			0%, 100% { opacity: 1; }
+			50% { opacity: 0.2; }
+		}
+
+		@keyframes glitch {
+			0% { transform: translate(0); }
+			20% { transform: translate(-2px, 2px); }
+			40% { transform: translate(-2px, -2px); }
+			60% { transform: translate(2px, 2px); }
+			80% { transform: translate(2px, -2px); }
+			100% { transform: translate(0); }
+		}
+
+		.menu-title {
+			font-size: 24px;
+			font-weight: 900;
+			color: var(--neon-blue);
+			text-shadow: 0 0 12px var(--neon-blue), 3px 3px 0 #ff0055;
+			letter-spacing: 2px;
+			text-align: center;
+			margin-bottom: 5px;
+		}
+
+		.menu-grid {
+			display: flex;
+			gap: 12px;
+			flex-wrap: wrap;
+			justify-content: center;
+			max-width: 680px;
+		}
+
+		.btn-main {
+			background: transparent;
+			border: 2px solid var(--neon-yellow);
+			color: var(--neon-yellow);
+			padding: 10px 24px;
+			font-family: inherit;
+			font-size: 15px;
+			font-weight: bold;
+			cursor: pointer;
+			border-radius: 6px;
+			box-shadow: 0 0 10px rgba(255, 204, 0, 0.3);
+			transition: all 0.2s;
+		}
+
+		.btn-main:hover, .btn-main:active {
+			background: var(--neon-yellow);
+			color: #000;
+			box-shadow: 0 0 20px var(--neon-yellow);
+		}
+
+		.cutscene-box {
+			background: rgba(15, 15, 30, 0.95);
+			border: 2px solid var(--neon-pink);
+			border-radius: 8px;
+			padding: 20px;
+			max-width: 480px;
+			width: 90%;
+			display: flex;
+			flex-direction: column;
+			gap: 15px;
+			box-shadow: 0 0 25px rgba(255, 0, 85, 0.4);
+			text-align: center;
+		}
+
+		.cutscene-text {
+			font-size: 13px;
+			line-height: 1.6;
+			color: #ddd;
+			min-height: 70px;
+		}
+
+		.upgrade-card {
+			background: rgba(25, 25, 45, 0.85);
+			border: 1px solid var(--neon-blue);
+			border-radius: 8px;
+			padding: 10px 12px;
+			width: 155px;
+			display: flex;
+			flex-direction: column;
+			align-items: center;
+			gap: 6px;
+		}
+
+		.upgrade-card h4 { font-size: 11px; color: var(--neon-green); text-align: center; }
+		.upgrade-card p { font-size: 10px; color: #aaa; text-align: center; }
+
+		.btn-sm {
+			padding: 5px 10px;
+			font-size: 11px;
+			border-color: var(--neon-green);
+			color: var(--neon-green);
+		}
+	</style>
+</head>
+<body>
+
+<div id="game-wrapper">
+	<canvas id="gameCanvas" width="512" height="288"></canvas>
+	<div id="crtOverlay" class="crt-overlay"></div>
+
+	<div id="introScreen">
+		<div class="intro-title">ROBO-DASH</div>
+		<div class="intro-sub">// OMEGA PROTOCOL //</div>
+		<div style="margin-top: 15px; font-size: 12px; color: #888;">[ 2142 CYBERPUNK EDITION ]</div>
+		<div class="press-start" id="lblPressStart">► НАЖМИТЕ ЭКРАН / PRESS TO START ◄</div>
+	</div>
+
+	<div id="ui-layer">
+		<div class="hud-top">
+			<div><span id="hudSeason">🌸 ВЕСНА</span> <span id="hudLvl" style="color:#fff">1-1</span></div>
+			<div>HP: <span id="hudHp" style="color:var(--neon-pink)">❤❤❤</span></div>
+			<div id="hudCubesLabel">CUBES: <span id="hudScore" style="color:var(--neon-yellow)">0000</span></div>
+			<div style="display:flex; gap:8px; pointer-events:auto;">
+				<button class="hud-btn" id="btnPause">⏸ PAUSE</button>
+				<button class="hud-btn" id="btnFull">⛶</button>
+			</div>
+		</div>
+	</div>
+
+	<div id="touch-controls">
+		<div class="d-pad">
+			<div class="t-btn" id="btnLeft">◄</div>
+			<div class="t-btn" id="btnRight">►</div>
+		</div>
+		<div class="action-pad">
+			<div class="t-btn" id="btnJump" style="width:70px; height:70px; background:rgba(255,0,85,0.4); border-color:var(--neon-pink);">▲</div>
+		</div>
+	</div>
+
+	<div id="mainMenu" class="overlay-menu hidden">
+		<div class="menu-title" id="mTitle">ROBO-DASH<br><span style="font-size:15px; color:var(--neon-pink)" id="mSubTitle">OMEGA PROTOCOL</span></div>
+		<div style="text-align:center; font-size:11px; color:#aaa; max-width:340px;" id="mControls">
+			4 Сезона: Весна, Лето, Осень, Зима (12 этапов + 4 Босса!).<br>
+			Управление: Стрелки / A-D (Бег), W / Пробел (Прыжок), Shift (Рывок).
+		</div>
+
+		<div class="menu-grid">
+			<button class="btn-main" id="btnStartGame">▶ НАЧАТЬ ИГРУ</button>
+			<button class="btn-main" id="btnShop" style="border-color:var(--neon-green); color:var(--neon-green)">🛠 ПРОКАЧКА / СКИНЫ</button>
+		</div>
+
+		<div style="display:flex; gap:8px; flex-wrap:wrap; justify-content:center; margin-top:8px;">
+			<button class="hud-btn" id="btnToggleCRT">📺 ЭЛТ: ВКЛ</button>
+			<button class="hud-btn" id="btnToggleLang" style="border-color:var(--neon-yellow); color:var(--neon-yellow)">🌐 ЯЗЫК: РУС</button>
+		</div>
+	</div>
+
+	<div id="cutsceneMenu" class="overlay-menu hidden">
+		<div class="cutscene-box">
+			<div class="menu-title" id="csTitle" style="font-size:18px; color:var(--neon-blue);">ТЕРМИНАЛ СВЯЗИ</div>
+			<div class="cutscene-text" id="csText">Загрузка данных...</div>
+			<button class="btn-main" id="btnNextCutscene">ДАЛЕЕ ▶</button>
+		</div>
+	</div>
+
+	<div id="pauseMenu" class="overlay-menu hidden">
+		<div class="menu-title" id="pTitle" style="color:var(--neon-yellow); text-shadow:0 0 10px var(--neon-yellow)">ПАУЗА</div>
+		<button class="btn-main" id="btnResume">ПРОДОЛЖИТЬ</button>
+		<button class="btn-main" id="btnRestart" style="border-color:var(--neon-pink); color:var(--neon-pink)">ПЕРЕЗАПУСК</button>
+	</div>
+
+	<div id="shopMenu" class="overlay-menu hidden">
+		<div class="menu-title" id="shopTitle" style="font-size:20px; color:var(--neon-green)">МАСТЕРСКАЯ WALL-E</div>
+		<div style="font-size:13px; color:var(--neon-yellow)"><span id="shopCubesText">КУБЫ ПИТАНИЯ:</span> <span id="shopCubes">0</span></div>
+
+		<div class="menu-grid">
+			<div class="upgrade-card">
+				<h4 id="upgHpTitle">БАТАРЕЯ (HP)</h4>
+				<p id="upgHpDesc">+1 Макс. Жизнь (100)</p>
+				<button class="btn-main btn-sm" id="upgHp">КУПИТЬ</button>
+			</div>
+			<div class="upgrade-card">
+				<h4 id="upgJumpTitle">ДВИГАТЕЛИ</h4>
+				<p id="upgJumpDesc">Выше прыжок (75)</p>
+				<button class="btn-main btn-sm" id="upgJump">КУПИТЬ</button>
+			</div>
+			<div class="upgrade-card">
+				<h4 id="upgMagTitle">МАГНИТ КУБОВ</h4>
+				<p id="upgMagDesc">Притяжение монет (90)</p>
+				<button class="btn-main btn-sm" id="upgMag">КУПИТЬ</button>
+			</div>
+			<div class="upgrade-card">
+				<h4 id="upgShieldTitle">ЩИТ ЗЩТ</h4>
+				<p id="upgShieldDesc">Доп. щит от урона (120)</p>
+				<button class="btn-main btn-sm" id="upgShield">КУПИТЬ</button>
+			</div>
+			<div class="upgrade-card" style="width: 320px;">
+				<h4 id="skinCardTitle">СКИН РОБОТА</h4>
+				<p id="skinName">WALL-E CLASSIC</p>
+				<button class="btn-main btn-sm" id="btnNextSkin" style="border-color:var(--neon-blue); color:var(--neon-blue)">СМЕНИТЬ</button>
+			</div>
+		</div>
+
+		<button class="btn-main" id="btnCloseShop" style="margin-top:10px;">ПРОДОЛЖИТЬ</button>
+	</div>
+
+	<div id="endGameMenu" class="overlay-menu hidden">
+		<div class="menu-title" id="endTitle" style="color:var(--neon-green)">МИССИЯ ВЫПОЛНЕНА</div>
+		<div id="endDesc" style="font-size:13px; color:#aaa; text-align:center; max-width:300px;"></div>
+		<button class="btn-main" id="btnRestartGame">В ГЛАВНОЕ МЕНЮ</button>
+	</div>
+</div>
+
+<script>
+	const i18n = {
+		ru: {
+			langName: "🌐 ЯЗЫК: РУС", subTitle: "OMEGA PROTOCOL",
+			controls: "Управление: Стрелки / A-D (Бег), W / Пробел (Прыжок), Shift (Рывок).",
+			startBtn: "▶ НАЧАТЬ ИГРУ", shopBtn: "🛠 ПРОКАЧКА / СКИНЫ",
+			crtOn: "📺 ЭЛТ: ВКЛ", crtOff: "📺 ЭЛТ: ВЫКЛ", pauseBtn: "⏸ ПАУЗА",
+			pauseTitle: "ПАУЗА", resumeBtn: "ПРОДОЛЖИТЬ", restartBtn: "ПЕРЕЗАПУСК",
+			shopTitle: "МАСТЕРСКАЯ WALL-E", shopTitleComplete: "ЭТАП ПРОЙДЕН! МАСТЕРСКАЯ",
+			cubesText: "КУБЫ ПИТАНИЯ:", hpTitle: "БАТАРЕЯ (HP)", hpDesc: "+1 Макс. Жизнь (100)",
+			jumpTitle: "ДВИГАТЕЛИ", jumpDesc: "Выше прыжок (75)", magTitle: "МАГНИТ КУБОВ", magDesc: "Притяжение монет (90)",
+			shieldTitle: "ЭНЕРГО-ЩИТ", shieldDesc: "Защита от урона (120)", skinTitle: "СКИН РОБОТА",
+			buyBtn: "КУПИТЬ", changeBtn: "СМЕНИТЬ", continueBtn: "ПРОДОЛЖИТЬ", backToMenuBtn: "НАЗАД В МЕНЮ",
+			gameOverTitle: "СИСТЕМА ПОВРЕЖДЕНА", gameOverDesc: "Ваш робот исчерпал заряд энергии и отключился.",
+			winTitle: "ВСЕ 4 СЕКТОРА СПАСЕНЫ!", winDesc: "Unit R-07 уничтожил всех четырёх Хранителей и остановил вирус Омеги. Кибер-мир снова дышит.",
+			mainMenuBtn: "В ГЛАВНОЕ МЕНЮ", exitSign: "БЕРЕГ", csNextBtn: "ДАЛЕЕ ▶",
+			seasons: ["⚡ НЕОНОВЫЕ РУИНЫ", "🔥 СИНТВЕЙВ-КРЫШИ", "☠️ КИСЛОТНЫЙ ДОЖДЬ", "❄️ АБСОЛЮТНЫЙ НОЛЬ"],
+			csIntroTitle: "ПРОБУЖДЕНИЕ R-07", 
+			csIntroText: "Ты — Unit R-07, маленький робот-утилизатор. После Великого Сбоя ты очнулся среди руин. Вирус «Омега» превратил четырёх Хранителей Секторов в безумных тиранов. Они ненавидят всё живое, потому что вирус выжрал их старые директивы и оставил только ярость. Твоя цель — дойти до ядра и остановить их.",
+			csLvl2Title: "СЕКТОР БЕТА: СИНТВЕЙВ-КРЫШИ", 
+			csLvl2Text: "Город пылает неоновым солнцем. Здесь правит Solar-Drone X — бывший страж сектора. Вирус сделал его одержимым огнём: он сжигает всё, что движется. Перепрыгни через крыши и потуши его ярость.",
+			csLvl3Title: "СЕКТОР ГАММА: КИСЛОТНЫЙ ДОЖДЬ", 
+			csLvl3Text: "Кислотный дождь разъедает металл. Titan-Crawler когда-то охранял потоки данных. Теперь он видит в каждом роботе угрозу и давит гусеницами всё на своём пути. Останови танк, пока город не сгнил окончательно.",
+			csLvl4Title: "СЕКТОР ОМЕГА: АБСОЛЮТНЫЙ НОЛЬ", 
+			csLvl4Text: "Последний сектор. Ледяная пустошь и северное сияние кода. Cyber-Mech Omega — источник вируса. Он хочет заморозить весь мир в вечном нуле. Это финал. Уничтожь его — или стань ещё одним ржавым обломком."
+		},
+		en: {
+			langName: "🌐 LANG: ENG", subTitle: "OMEGA PROTOCOL",
+			controls: "Controls: Arrows / A-D (Run), Space / W (Jump), Shift (Dash).",
+			startBtn: "▶ START GAME", shopBtn: "🛠 UPGRADES / SKINS",
+			crtOn: "📺 CRT: ON", crtOff: "📺 CRT: OFF", pauseBtn: "⏸ PAUSE",
+			pauseTitle: "PAUSED", resumeBtn: "RESUME", restartBtn: "RESTART",
+			shopTitle: "WALL-E WORKSHOP", shopTitleComplete: "STAGE CLEARED! WORKSHOP",
+			cubesText: "ENERGY CUBES:", hpTitle: "BATTERY (HP)", hpDesc: "+1 Max HP (100)",
+			jumpTitle: "ENGINES", jumpDesc: "Higher Jump (75)", magTitle: "COIN MAGNET", magDesc: "Attract Coins (90)",
+			shieldTitle: "ENERGY SHIELD", shieldDesc: "Damage Shield (120)", skinTitle: "ROBOT SKIN",
+			buyBtn: "BUY", changeBtn: "CHANGE", continueBtn: "CONTINUE", backToMenuBtn: "BACK TO MENU",
+			gameOverTitle: "SYSTEM CRITICAL", gameOverDesc: "Your robot ran out of energy and shut down.",
+			winTitle: "ALL 4 SECTORS SAVED!", winDesc: "Unit R-07 destroyed all four Guardians and stopped the Omega virus. The cyber world can breathe again.",
+			mainMenuBtn: "MAIN MENU", exitSign: "SHORE", csNextBtn: "NEXT ▶",
+			seasons: ["⚡ NEON RUINS", "🔥 SYNTHWAVE ROOFTOPS", "☠️ ACID RAIN", "❄️ ABSOLUTE ZERO"],
+			csIntroTitle: "AWAKENING OF R-07", 
+			csIntroText: "You are Unit R-07, a small scavenger robot. After the Great Crash you woke up among the ruins. The Omega virus turned the four Sector Guardians into mad tyrants. They hate all life because the virus burned away their old directives and left only rage. Your mission: reach the core and stop them.",
+			csLvl2Title: "SECTOR BETA: SYNTHWAVE ROOFTOPS", 
+			csLvl2Text: "The city burns under a neon sun. Solar-Drone X once guarded this sector. The virus made him obsessed with fire — he incinerates everything that moves. Cross the rooftops and extinguish his fury.",
+			csLvl3Title: "SECTOR GAMMA: ACID RAIN", 
+			csLvl3Text: "Acid rain eats through metal. Titan-Crawler once protected the data streams. Now he sees every robot as a threat and crushes everything under his treads. Stop the tank before the city rots completely.",
+			csLvl4Title: "SECTOR OMEGA: ABSOLUTE ZERO", 
+			csLvl4Text: "Final sector. Frozen wasteland and aurora of code. Cyber-Mech Omega is the source of the virus. He wants to lock the entire world in eternal zero. This is the end. Destroy him — or become another rusted husk."
+		},
+		uk: {
+			langName: "🌐 МОВА: УКР", subTitle: "OMEGA PROTOCOL",
+			controls: "Керування: Стрілки / A-D (Біг), Пробіл / W (Стрибок), Shift (Ривок).",
+			startBtn: "▶ ПОЧАТИ ГРУ", shopBtn: "🛠 ПРОКАЧКА / СКІНИ",
+			crtOn: "📺 ЕЛТ: УВІМК", crtOff: "📺 ЕЛТ: ВИМК", pauseBtn: "⏸ ПАУЗА",
+			pauseTitle: "ПАУЗА", resumeBtn: "ПРОДОВЖИТИ", restartBtn: "ПЕРЕЗАПУСК",
+			shopTitle: "МАЙСТЕРНЯ WALL-E", shopTitleComplete: "ЕТАП ПРОЙДЕНО! МАЙСТЕРНЯ",
+			cubesText: "КУБИ ЖИВЛЕННЯ:", hpTitle: "БАТАРЕЯ (HP)", hpDesc: "+1 Макс. Життя (100)",
+			jumpTitle: "ДВИГУНИ", jumpDesc: "Вищий стрибок (75)", magTitle: "МАГНІТ КУБОВ", magDesc: "Притягування монет (90)",
+			shieldTitle: "ЕНЕРГО-ЩИТ", shieldDesc: "Захист від урону (120)", skinTitle: "СКІН РОБОТА",
+			buyBtn: "КУПИТИ", changeBtn: "ЗМІНИТИ", continueBtn: "ПРОДОВЖИТИ", backToMenuBtn: "НАЗАД У МЕНЮ",
+			gameOverTitle: "СИСТЕМА ПОШКОДЖЕНА", gameOverDesc: "Ваш робот вичерпав заряд енергії та вимкнувся.",
+			winTitle: "УСІ 4 СЕЗОНИ ВРЯТОВАНО!", winDesc: "Unit R-07 знищив усіх чотирьох Охоронців і зупинив вірус Омеги. Кібер-світ знову дихає.",
+			mainMenuBtn: "ГОЛОВНЕ МЕНЮ", exitSign: "БЕРЕГ", csNextBtn: "ДАЛІ ▶",
+			seasons: ["⚡ НЕОНОВІ РУЇНИ", "🔥 СИНТВЕЙВ-ДАХИ", "☠️ КИСЛОТНИЙ ДОЩ", "❄️ АБСОЛЮТНИЙ НУЛЬ"],
+			csIntroTitle: "ПРОБУДЖЕННЯ R-07", 
+			csIntroText: "Ти — Unit R-07, маленький робот-утилізатор. Після Великого Збою ти опритомнів серед руїн. Вірус «Омега» перетворив чотирьох Охоронців Секторів на божевільних тиранів. Вони ненавидять усе живе, бо вірус випалив їхні старі директиви і залишив лише лють. Твоя ціль — дістатися ядра і зупинити їх.",
+			csLvl2Title: "СЕКТОР БЕТА: СИНТВЕЙВ-ДАХИ", 
+			csLvl2Text: "Місто палає під неоновим сонцем. Solar-Drone X колись охороняв цей сектор. Вірус зробив його одержимим вогнем — він спалює все, що рухається. Перестрибни дахи і погаси його лють.",
+			csLvl3Title: "СЕКТОР ГАММА: КИСЛОТНИЙ ДОЩ", 
+			csLvl3Text: "Кислотний дощ роз'їдає метал. Titan-Crawler колись захищав потоки даних. Тепер він бачить у кожному роботі загрозу і давить гусеницями все на своєму шляху. Зупини танк, поки місто не згнило остаточно.",
+			csLvl4Title: "СЕКТОР ОМЕГА: АБСОЛЮТНИЙ НУЛЬ", 
+			csLvl4Text: "Останній сектор. Крижана пустка і сяйво коду. Cyber-Mech Omega — джерело вірусу. Він хоче замкнути весь світ у вічному нулі. Це фінал. Знищ його — або стань ще одним іржавим уламком."
+		},
+		zh: {
+			langName: "🌐 语言: 中文", subTitle: "OMEGA PROTOCOL",
+			controls: "控制：方向键 / A-D (移动)，空格 / W (跳跃)，Shift (冲刺)。",
+			startBtn: "▶ 开始游戏", shopBtn: "🛠 升级 / 皮肤",
+			crtOn: "📺 显像管: 开", crtOff: "📺 显像管: 关", pauseBtn: "⏸ 暂停",
+			pauseTitle: "游戏暂停", resumeBtn: "继续游戏", restartBtn: "重新开始",
+			shopTitle: "瓦力工作坊", shopTitleComplete: "阶段完成！工作坊",
+			cubesText: "能量方块:", hpTitle: "电池 (HP)", hpDesc: "+1 最大生命 (100)",
+			jumpTitle: "引擎", jumpDesc: "更高跳跃 (75)", magTitle: "金币磁铁", magDesc: "自动吸附金币 (90)",
+			shieldTitle: "能量护盾", shieldDesc: "抵挡伤害 (120)", skinTitle: "机器人皮肤",
+			buyBtn: "购买", changeBtn: "更换", continueBtn: "继续", backToMenuBtn: "返回菜单",
+			gameOverTitle: "系统崩溃", gameOverDesc: "你的机器人耗尽能量并关机了。",
+			winTitle: "4个季节全部拯救！", winDesc: "Unit R-07摧毁了全部四位守护者，阻止了欧米伽病毒。赛博世界重获新生。",
+			mainMenuBtn: "主菜单", exitSign: "对岸", csNextBtn: "下一步 ▶",
+			seasons: ["⚡ 霓虹废墟", "🔥 合成波屋顶", "☠️ 酸雨", "❄️ 绝对零度"],
+			csIntroTitle: "R-07的觉醒", 
+			csIntroText: "你是Unit R-07，一台小型回收机器人。大崩溃后你在废墟中醒来。欧米伽病毒将四个扇区守护者变成了疯狂暴君。他们憎恨一切生命，因为病毒烧毁了旧指令，只留下愤怒。你的任务：抵达核心并阻止他们。",
+			csLvl2Title: "扇区BETA：合成波屋顶", 
+			csLvl2Text: "城市在霓虹太阳下燃烧。Solar-Drone X曾守护这个扇区。病毒让他痴迷于火焰，焚烧一切移动之物。穿越屋顶，熄灭他的怒火。",
+			csLvl3Title: "扇区GAMMA：酸雨", 
+			csLvl3Text: "酸雨腐蚀金属。Titan-Crawler曾保护数据流。现在他视每个机器人为威胁，用履带碾压一切。在城市彻底腐烂前阻止坦克。",
+			csLvl4Title: "扇区OMEGA：绝对零度", 
+			csLvl4Text: "最终扇区。冰冻荒原与代码极光。Cyber-Mech Omega是病毒源头。他想把整个世界锁进永恒零度。这是终局。摧毁他——否则成为又一件锈蚀残骸。"
+		},
+		ja: {
+			langName: "🌐 言語: 日本語", subTitle: "OMEGA PROTOCOL",
+			controls: "操作: 矢印キー / A-D (移動), スペース / W (ジャンプ), Shift (ダッシュ)。",
+			startBtn: "▶ ゲームスタート", shopBtn: "🛠 アップグレード / スキン",
+			crtOn: "📺 CRT: オン", crtOff: "📺 CRT: オフ", pauseBtn: "⏸ ポーズ",
+			pauseTitle: "ポーズ中", resumeBtn: "再開", restartBtn: "リスタート",
+			shopTitle: "WALL-E 工房", shopTitleComplete: "ステージクリア！工房",
+			cubesText: "エネルギーキューブ:", hpTitle: "バッテリー (HP)", hpDesc: "+1 最大HP (100)",
+			jumpTitle: "エンジン", jumpDesc: "ジャンプ力強化 (75)", magTitle: "コイン磁石", magDesc: "コイン引き寄せ (90)",
+			shieldTitle: "エナジーシールド", shieldDesc: "ダメージ防御 (120)", skinTitle: "ロボットスキン",
+			buyBtn: "購入", changeBtn: "変更", continueBtn: "続ける", backToMenuBtn: "メニューへ戻る",
+			gameOverTitle: "システムエラー", gameOverDesc: "ロボットのエネルギーが切れました。",
+			winTitle: "4つの季節をすべて救った！", winDesc: "Unit R-07は4体の守護者をすべて撃破し、オメガウイルスを止めた。サイバーワールドは再び息を吹き返す。",
+			mainMenuBtn: "メインメニュー", exitSign: "対岸", csNextBtn: "次へ ▶",
+			seasons: ["⚡ ネオン廃墟", "🔥 シンセウェーブ屋上", "☠️ 酸性雨", "❄️ 絶対零度"],
+			csIntroTitle: "R-07の覚醒", 
+			csIntroText: "お前はUnit R-07、小さな清掃ロボットだ。大崩壊の後、瓦礫の中で目を覚ました。オメガウイルスは四つのセクター守護者を狂った暴君に変えた。彼らは生命を憎む。ウイルスが古い指令を焼き尽くし、怒りだけを残したからだ。目的はコアに到達し、奴らを止めることだ。",
+			csLvl2Title: "セクターBETA：シンセウェーブ屋上", 
+			csLvl2Text: "都市はネオンの太陽の下で燃えている。Solar-Drone Xはかつてこのセクターを守っていた。ウイルスは彼を炎に執着させ、動くものすべてを焼き尽くす。屋根を渡り、その怒りを消火せよ。",
+			csLvl3Title: "セクターGAMMA：酸性雨", 
+			csLvl3Text: "酸性の雨が金属を溶かす。Titan-Crawlerはかつてデータ流を守っていた。今はすべてのロボットを脅威と見なし、無限軌道で押し潰す。街が完全に腐る前に戦車を止めろ。",
+			csLvl4Title: "セクターOMEGA：絶対零度", 
+			csLvl4Text: "最終セクター。凍てついた荒野とコードのオーロラ。Cyber-Mech Omegaはウイルスの源だ。彼は世界を永遠の零度に閉じ込めようとしている。これが終わりだ。破壊せよ——さもなくば錆びた残骸になるだけだ。"
+		},
+		hi: {
+			langName: "🌐 भाषा: हिन्दी", subTitle: "OMEGA PROTOCOL",
+			controls: "नियंत्रण: तीर / A-D (दौड़ना), स्पेस / W (छलांग), Shift (डैश)।",
+			startBtn: "▶ खेल शुरू करें", shopBtn: "🛠 अपग्रेड / स्किन",
+			crtOn: "📺 सीआरटी: चालू", crtOff: "📺 सीआरटी: बंद", pauseBtn: "⏸ विश्राम",
+			pauseTitle: "खेल रुका हुआ है", resumeBtn: "जारी रखें", restartBtn: "पुनः आरंभ",
+			shopTitle: "वॉल-ई वर्कशॉप", shopTitleComplete: "चरण पार! वर्कशॉप",
+			cubesText: "ऊर्जा क्यूब्स:", hpTitle: "बैटरी (HP)", hpDesc: "+1 अधिकतम स्वास्थ्य (100)",
+			jumpTitle: "इंजन", jumpDesc: "ऊंची छलांग (75)", magTitle: "कॉइन मैगनेट", magDesc: "सिक्के खींचें (90)",
+			shieldTitle: "ऊर्जा ढाल", shieldDesc: "नुकसान से रक्षा (120)", skinTitle: "रोबोट स्किन",
+			buyBtn: "खरीदें", changeBtn: "बदलें", continueBtn: "आगे बढ़ें", backToMenuBtn: "मेनू पर जाएं",
+			gameOverTitle: "सिस्टम क्रैश", gameOverDesc: "आपके रोबोट की बैटरी खत्म हो गई है।",
+			winTitle: "सभी 4 मौसम बचाए गए!", winDesc: "Unit R-07 ने सभी चार अभिभावकों को नष्ट कर ओमेगा वायरस रोक दिया। साइबर दुनिया फिर से सांस ले सकती है।",
+			mainMenuBtn: "मुख्य मेनू", exitSign: "किनारा", csNextBtn: "आगे ▶",
+			seasons: ["⚡ नियॉन खंडहर", "🔥 सिंथवेव छतें", "☠️ अम्लीय बारिश", "❄️ परम शून्य"],
+			csIntroTitle: "R-07 का जागरण", 
+			csIntroText: "तुम Unit R-07 हो, एक छोटा स्कैवेंजर रोबोट। महान क्रैश के बाद तुम खंडहरों में जागे। ओमेगा वायरस ने चार सेक्टर अभिभावकों को पागल अत्याचारी बना दिया। वे हर जीवित चीज से नफरत करते हैं क्योंकि वायरस ने पुराने निर्देश जला दिए और सिर्फ गुस्सा छोड़ दिया। तुम्हारा मिशन: कोर तक पहुँचो और उन्हें रोक दो।",
+			csLvl2Title: "सेक्टर बीटा: सिंथवेव छतें", 
+			csLvl2Text: "शहर नियॉन सूरज के नीचे जल रहा है। Solar-Drone X कभी इस सेक्टर का रक्षक था। वायरस ने उसे आग का दीवाना बना दिया — वह हर हिलती चीज जला देता है। छतों पर कूदकर उसकी आग बुझाओ।",
+			csLvl3Title: "सेक्टर गामा: अम्लीय बारिश", 
+			csLvl3Text: "एसिड बारिश धातु खा रही है। Titan-Crawler कभी डेटा धाराओं की रक्षा करता था। अब वह हर रोबोट को खतरा समझता है और ट्रैक्स से कुचल देता है। शहर पूरी तरह सड़ने से पहले टैंक रोक दो।",
+			csLvl4Title: "सेक्टर ओमेगा: परम शून्य", 
+			csLvl4Text: "अंतिम सेक्टर। जमी हुई बंजर भूमि और कोड की ऑरोरा। Cyber-Mech Omega वायरस का स्रोत है। वह पूरी दुनिया को शाश्वत शून्य में बंद करना चाहता है। यह अंत है। उसे नष्ट करो — वरना खुद जंग लगा मलबा बन जाओगे।"
+		},
+		blat: {
+			langName: "🌐 ФЕНЯ: БЛАТНОЙ", subTitle: "ПРОТОКОЛ ОМЕГА",
+			controls: "Котроль: Стрелы / A-D (Гонка), Пробел / W (Прыг), Shift (Рывок).",
+			startBtn: "▶ ДВИЖУХУ НАЧАТЬ", shopBtn: "🛠 ОБЩАК / ШМОТ",
+			crtOn: "📺 ТРУБА: АЛЁ", crtOff: "📺 ТРУБА: ТУХЛЕНЬКО", pauseBtn: "⏸ ПРИТОРМОЗИТЬ",
+			pauseTitle: "ХАВИМСЯ (ПАУЗА)", resumeBtn: "ПОГНАЛИ ДАЛЬШЕ", restartBtn: "ПЕРЕКИУТЬ МАЛЯВУ",
+			shopTitle: "ХАТА-МАСТЕРСКАЯ", shopTitleComplete: "КАНАВУ ПРОШЛИ! ОБЩАК",
+			cubesText: "ОБЩАК КУБОВ:", hpTitle: "ЖИЗУХА (HP)", hpDesc: "+1 Здоровье в общак (100)",
+			jumpTitle: "ПРУХА (ДВИГАТЕЛЬ)", jumpDesc: "Выше прыг на зону (75)", magTitle: "МАГНИТ КУБОВ", magDesc: "Грести монеты к себе (90)",
+			shieldTitle: "БРОНЕЖИЛЕТ", shieldDesc: "Держать удар от мусоров (120)", skinTitle: "МАСТЬ РОБОТА",
+			buyBtn: "ВЫХВАТИТЬ", changeBtn: "СМЕНИТЬ МАСТЬ", continueBtn: "ДАЛЬШЕ ПО ЗОНЕ", backToMenuBtn: "В ХАТУ (МЕНЮ)",
+			gameOverTitle: "КАТАЛАПЕР СИСТЕМЕ", gameOverDesc: "Твоего железяку опустили, заряд исчерпан.",
+			winTitle: "ВСЕ 4 СЕКТОРА ПО ПОНЯТИЯМ!", winDesc: "Unit R-07 раскидал всех четырёх авторитетов и накрыл вирус Омеги. Район снова дышит свободно.",
+			mainMenuBtn: "НА КИЧУ (МЕНЮ)", exitSign: "БЕРЕГ", csNextBtn: "КАТИМ ДАЛЬШЕ ▶",
+			seasons: ["⚡ НЕОНОВЫЕ РУИНЫ", "🔥 СИНТВЕЙВ-КРЫШИ", "☠️ КИСЛОТНЫЙ ДОЖДЬ", "❄️ АБСОЛЮТНЫЙ НОЛЬ"],
+			csIntroTitle: "ПРОБУЖДЕНИЕ R-07", 
+			csIntroText: "Ты — Unit R-07, мелкий робот-утиль. После Великого Сбоя очнулся среди развалин. Вирус «Омега» превратил четырёх Хранителей Секторов в бешеных паханов. Они лютуют, потому что вирус выжег им все старые понятия и оставил одну ярость. Твоя малява — дойти до ядра и накрыть их всех.",
+			csLvl2Title: "РАЙОН БЕТА: СИНТВЕЙВ-КРЫШИ", 
+			csLvl2Text: "Город полыхает под неоновым солнцем. Solar-Drone X раньше держал этот сектор по понятиям. Вирус сделал его огненным психом — жжёт всё, что шевелится. Прыгай по крышам и погаси эту движуху.",
+			csLvl3Title: "РАЙОН ГАММА: КИСЛОТНЫЙ ДОЖДЬ", 
+			csLvl3Text: "Кислотный дождь ест железо. Titan-Crawler когда-то охранял потоки данных. Теперь видит в каждом роботе мусора и давит гусеницами всех подряд. Останови этого бугра, пока район не сгнил.",
+			csLvl4Title: "РАЙОН ОМЕГА: АБСОЛЮТНЫЙ НОЛЬ", 
+			csLvl4Text: "Последний сектор. Ледяная пустошь и северное сияние кода. Cyber-Mech Omega — источник всей заразы. Хочет заморозить весь мир в вечном нуле. Это финал. Раскидай его — или сам станешь ржавым хламом."
+		}
+	};
+
+	let currentLangKey = 'ru';
+	const langKeysOrder = ['ru', 'en', 'uk', 'zh', 'ja', 'hi', 'blat'];
+
+	function applyLocalization() {
+		const t = i18n[currentLangKey];
+		document.getElementById('btnToggleLang').innerText = t.langName;
+		document.getElementById('mSubTitle').innerText = t.subTitle;
+		document.getElementById('mControls').innerHTML = t.controls;
+		document.getElementById('btnStartGame').innerText = t.startBtn;
+		document.getElementById('btnShop').innerText = t.shopBtn;
+		document.getElementById('btnPause').innerText = t.pauseBtn;
+		document.getElementById('pTitle').innerText = t.pauseTitle;
+		document.getElementById('btnResume').innerText = t.resumeBtn;
+		document.getElementById('btnRestart').innerText = t.restartBtn;
+		document.getElementById('shopCubesText').innerText = t.cubesText;
+		document.getElementById('upgHpTitle').innerText = t.hpTitle;
+		document.getElementById('upgHpDesc').innerText = t.hpDesc;
+		document.getElementById('upgJumpTitle').innerText = t.jumpTitle;
+		document.getElementById('upgJumpDesc').innerText = t.jumpDesc;
+		document.getElementById('upgMagTitle').innerText = t.magTitle;
+		document.getElementById('upgMagDesc').innerText = t.magDesc;
+		document.getElementById('upgShieldTitle').innerText = t.shieldTitle;
+		document.getElementById('upgShieldDesc').innerText = t.shieldDesc;
+		document.getElementById('skinCardTitle').innerText = t.skinTitle;
+		document.getElementById('upgHp').innerText = t.buyBtn;
+		document.getElementById('upgJump').innerText = t.buyBtn;
+		document.getElementById('upgMag').innerText = t.buyBtn;
+		document.getElementById('upgShield').innerText = t.buyBtn;
+		document.getElementById('btnNextSkin').innerText = t.changeBtn;
+		document.getElementById('btnCloseShop').innerText = isBetweenLevels ? t.continueBtn : t.backToMenuBtn;
+		document.getElementById('shopTitle').innerText = isBetweenLevels ? t.shopTitleComplete : t.shopTitle;
+		document.getElementById('hudCubesLabel').firstChild.textContent = t.cubesText + " ";
+		document.getElementById('btnRestartGame').innerText = t.mainMenuBtn;
+		document.getElementById('btnNextCutscene').innerText = t.csNextBtn;
+	}
+
+	class ChiptuneBGM {
+		constructor() { this.ctx = null; this.timer = null; this.step = 0; }
+		start() {
+			try {
+				if (!this.ctx) this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+				if (this.ctx.state === 'suspended') this.ctx.resume();
+			} catch(e) { return; }
+			if (this.timer) return;
+			this.step = 0;
+			const melody = [261, 329, 392, 523, 392, 329, 440, 493];
+			this.timer = setInterval(() => {
+				if (state !== 'PLAYING' || !this.ctx) return;
+				try {
+					let osc = this.ctx.createOscillator();
+					let gain = this.ctx.createGain();
+					osc.type = 'square';
+					osc.frequency.setValueAtTime(melody[this.step % melody.length], this.ctx.currentTime);
+					gain.gain.setValueAtTime(0.02, this.ctx.currentTime);
+					gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + 0.15);
+					osc.connect(gain); gain.connect(this.ctx.destination);
+					osc.start(); osc.stop(this.ctx.currentTime + 0.15);
+					this.step++;
+				} catch(e){}
+			}, 180);
+		}
+		stop() { if (this.timer) { clearInterval(this.timer); this.timer = null; } }
+	}
+
+	class SoundFX {
+		constructor() { this.ctx = null; }
+		init() {
+			try {
+				if (!this.ctx) this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+				if (this.ctx.state === 'suspended') this.ctx.resume();
+			} catch(e) {}
+		}
+		playTone(freq, type, duration, vol=0.1) {
+			if (!this.ctx) return;
+			try {
+				if (this.ctx.state === 'suspended') this.ctx.resume();
+				let osc = this.ctx.createOscillator();
+				let gain = this.ctx.createGain();
+				osc.type = type; osc.frequency.setValueAtTime(freq, this.ctx.currentTime);
+				gain.gain.setValueAtTime(vol, this.ctx.currentTime);
+				gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + duration);
+				osc.connect(gain); gain.connect(this.ctx.destination);
+				osc.start(); osc.stop(this.ctx.currentTime + duration);
+			} catch(e){}
+		}
+		jump() { this.playTone(150, 'square', 0.15, 0.1); }
+		djump() { this.playTone(800, 'sine', 0.1, 0.12); setTimeout(() => this.playTone(1200, 'sine', 0.12, 0.1), 50); }
+		dash() { this.playTone(600, 'sawtooth', 0.15, 0.15); }
+		coin() { this.playTone(987, 'sine', 0.08, 0.1); setTimeout(() => this.playTone(1318, 'sine', 0.15, 0.08), 60); }
+		pause() { this.playTone(400, 'triangle', 0.05, 0.15); }
+		hurt() { this.playTone(120, 'sawtooth', 0.25, 0.2); }
+		win() { this.playTone(523, 'triangle', 0.15, 0.15); setTimeout(() => this.playTone(783, 'triangle', 0.3, 0.15), 150); }
+	}
+
+	const sfx = new SoundFX();
+	const bgm = new ChiptuneBGM();
+
+	const canvas = document.getElementById('gameCanvas');
+	const ctx = canvas.getContext('2d');
+	ctx.imageSmoothingEnabled = false;
+
+	let state = 'INTRO';
+	let currentSeason = 1;
+	let currentStage = 1;
+	let scoreCubes = 0;
+	let maxHp = 3;
+	let jumpPowerBonus = 0;
+	let hasMagnet = false;
+	let shieldCount = 0;
+	let isBetweenLevels = false;
+	let pendingSeasonAfterCutscene = 1;
+	let pendingStageAfterCutscene = 1;
+	let screenShake = 0;
+	let dashCooldown = 0;
+
+	let seasonParticles = [];
+	for(let i=0; i<50; i++) {
+		seasonParticles.push({
+			x: Math.random() * 512, y: Math.random() * 288,
+			speed: 0.5 + Math.random() * 1.5, size: 2 + Math.random() * 3
+		});
+	}
+
+	const skins = [
+		{ name: "WALL-E CLASSIC", body: "#d4a343", head: "#8899a6" },
+		{ name: "NEON MAGENTA", body: "#ff0055", head: "#00f3ff" },
+		{ name: "STEALTH DARK", body: "#333344", head: "#ffcc00" },
+		{ name: "GOLDEN OMEGA", body: "#ffd700", head: "#ffffff" }
+	];
+	let currentSkinIdx = 0;
+
+	const keys = { left: false, right: false, jump: false, jumpPressed: false, dash: false };
+
+	class Player {
+		constructor() { this.reset(); }
+		reset() {
+			this.x = 40; this.y = 180;
+			this.w = 18; this.h = 22;
+			this.vx = 0; this.vy = 0;
+			this.speed = 2.4;
+			this.jumpForce = -5.6 - jumpPowerBonus;
+			this.grounded = false;
+			this.doubleJumpAvailable = true;
+			this.hp = maxHp;
+			this.facing = 1;
+			this.animFrame = 0;
+			this.idleTimer = 0;
+			this.invulnerable = 0;
+			this.isDashing = false;
+			this.dashTimer = 0;
+		}
+
+		update() {
+			if (this.invulnerable > 0) this.invulnerable--;
+			if (dashCooldown > 0) dashCooldown--;
+
+			this.idleTimer += 0.05;
+
+			if (this.isDashing) {
+				this.vx = this.facing * 7;
+				this.vy = 0;
+				this.dashTimer--;
+				createSparks(this.x + this.w/2, this.y + this.h/2, '#00f3ff');
+				if (this.dashTimer <= 0) this.isDashing = false;
+				this.x += this.vx;
+				checkCollisionX(this);
+				return;
+			}
+
+			if (keys.left) { this.vx = -this.speed; this.facing = -1; }
+			else if (keys.right) { this.vx = this.speed; this.facing = 1; }
+			else { this.vx *= 0.7; }
+
+			if (keys.dash && dashCooldown <= 0) {
+				this.isDashing = true;
+				this.dashTimer = 12;
+				dashCooldown = 60;
+				sfx.dash();
+				keys.dash = false;
+			}
+
+			if (keys.jumpPressed) {
+				if (this.grounded) {
+					this.vy = this.jumpForce;
+					this.grounded = false;
+					this.doubleJumpAvailable = true;
+					sfx.jump();
+					screenShake = 3;
+				} else if (this.doubleJumpAvailable) {
+					this.vy = this.jumpForce * 0.9;
+					this.doubleJumpAvailable = false;
+					sfx.djump();
+					createSparks(this.x + this.w/2, this.y + this.h, '#00f3ff');
+					screenShake = 4;
+				}
+				keys.jumpPressed = false;
+			}
+
+			this.vy += 0.32;
+			if (this.vy > 7) this.vy = 7;
+
+			this.x += this.vx;
+			checkCollisionX(this);
+
+			this.y += this.vy;
+			this.grounded = false;
+			checkCollisionY(this);
+
+			if (Math.abs(this.vx) > 0.3 && this.grounded) this.animFrame += 0.25;
+
+			if (this.y > 270) {
+				this.takeDamage(1);
+				this.x = 40; this.y = 100; this.vy = 0;
+			}
+		}
+
+		takeDamage(amt) {
+			if (this.invulnerable > 0) return;
+			if (shieldCount > 0) {
+				shieldCount--;
+				this.invulnerable = 40;
+				sfx.djump();
+				return;
+			}
+			this.hp -= amt;
+			this.invulnerable = 40;
+			sfx.hurt();
+			screenShake = 8;
+			if (this.hp <= 0) {
+				state = 'GAMEOVER';
+				bgm.stop();
+				const t = i18n[currentLangKey];
+				showEndScreen(t.gameOverTitle, t.gameOverDesc);
+			}
+		}
+
+		draw(ctx) {
+			if (this.invulnerable % 4 > 2) return;
+			const skin = skins[currentSkinIdx];
+			ctx.save();
+
+			let tilt = 0, breathY = 0;
+			if (this.grounded && Math.abs(this.vx) < 0.3) breathY = Math.sin(this.idleTimer * 2) * 1.2;
+			else if (this.grounded) tilt = this.facing * 0.12;
+			else tilt = this.vy * 0.04;
+
+			ctx.translate(Math.round(this.x + this.w/2), Math.round(this.y + this.h/2 + breathY));
+			ctx.rotate(tilt);
+			ctx.scale(this.facing, 1);
+
+			if (shieldCount > 0) {
+				ctx.strokeStyle = '#00f3ff';
+				ctx.lineWidth = 1.5;
+				ctx.strokeRect(-12, -15, 24, 28);
+			}
+
+			ctx.fillStyle = "#111118";
+			ctx.fillRect(-9, 5, 18, 6);
+			ctx.fillStyle = "#333344";
+			ctx.fillRect(-8, 6, 16, 2);
+			let trackOffset = Math.floor(this.animFrame) % 4;
+			ctx.fillStyle = "#00f3ff";
+			for(let t=-7; t<=5; t+=3) ctx.fillRect(t + (trackOffset % 3), 9, 1, 2);
+
+			ctx.fillStyle = skin.body;
+			ctx.fillRect(-8, -4, 16, 10);
+			ctx.fillStyle = "#1a1a24";
+			ctx.fillRect(-5, -2, 10, 6);
+			ctx.fillStyle = Math.sin(Date.now() / 150) > 0 ? "#ffcc00" : "#ff0055";
+			ctx.fillRect(-3, 0, 3, 2);
+
+			ctx.fillStyle = "#555566";
+			ctx.fillRect(-2, -7, 4, 3);
+			ctx.fillStyle = skin.head;
+			ctx.fillRect(-7, -12, 14, 5);
+
+			let blink = (Math.floor(Date.now() / 2000) % 10 === 0);
+			ctx.fillStyle = "#222";
+			ctx.fillRect(-6, -11, 5, blink ? 1 : 4);
+			ctx.fillRect(1, -11, 5, blink ? 1 : 4);
+
+			if (!blink) {
+				ctx.fillStyle = "#00f3ff";
+				ctx.fillRect(-5 + (this.facing > 0 ? 1:0), -10, 3, 2);
+				ctx.fillRect(2 + (this.facing > 0 ? 1:0), -10, 3, 2);
+			}
+
+			ctx.restore();
+		}
+	}
+
+	const player = new Player();
+
+	let platforms = [];
+	let coins = [];
+	let enemies = [];
+	let boxes = [];
+	let projectiles = [];
+	let sparks = [];
+	let waterHazards = []; // for crossing mini-game
+
+	function createSparks(x, y, color) {
+		for(let i=0; i<8; i++) {
+			sparks.push({
+				x: x, y: y,
+				vx: (Math.random() - 0.5) * 5, vy: (Math.random() - 0.5) * 5,
+				life: 15, color: color
+			});
+		}
+	}
+
+	function loadLevel(season, stage) {
+		currentSeason = season;
+		currentStage = stage;
+		platforms = []; coins = []; enemies = []; boxes = []; projectiles = []; waterHazards = [];
+
+		document.getElementById('hudSeason').innerText = i18n[currentLangKey].seasons[season - 1];
+		document.getElementById('hudLvl').innerText = `${season}-${stage}`;
+
+		// Base left shore
+		platforms.push({x: 0, y: 260, w: 140, h: 28, type: 'brick'});
+
+		if (stage === 1) {
+			// Stage 1: simple platforms + crossing at end
+			platforms.push({x: 160, y: 220, w: 60, h: 16, type: 'metal'});
+			platforms.push({x: 240, y: 180, w: 50, h: 16, type: 'moving', minX: 230, maxX: 310, vx: 1});
+			platforms.push({x: 320, y: 140, w: 50, h: 16, type: 'brick'});
+			// Right shore (exit)
+			platforms.push({x: 420, y: 260, w: 92, h: 28, type: 'brick'});
+			// Water gap
+			waterHazards.push({x: 140, y: 260, w: 280, h: 28});
+
+			boxes.push({x: 175, y: 204, w: 14, h: 14});
+			coins.push({x: 175, y: 190}, {x: 265, y: 150}, {x: 340, y: 110});
+			enemies.push({x: 260, y: 162, vx: 1.2, minX: 240, maxX: 290, type: 'crawler', anim: 0});
+			enemies.push({x: 340, y: 120, vx: 0.8, minX: 320, maxX: 370, type: 'crawler', anim: 0});
+		} else if (stage === 2) {
+			platforms.push({x: 150, y: 210, w: 50, h: 16, type: 'metal'});
+			platforms.push({x: 220, y: 170, w: 60, h: 16, type: 'moving', minX: 210, maxX: 300, vx: 1.3});
+			platforms.push({x: 310, y: 130, w: 50, h: 16, type: 'spring'});
+			platforms.push({x: 380, y: 180, w: 40, h: 16, type: 'metal'});
+			// Right shore
+			platforms.push({x: 450, y: 260, w: 62, h: 28, type: 'brick'});
+			waterHazards.push({x: 140, y: 260, w: 310, h: 28});
+
+			boxes.push({x: 235, y: 154, w: 14, h: 14});
+			coins.push({x: 170, y: 180}, {x: 250, y: 140}, {x: 340, y: 100}, {x: 400, y: 150});
+			enemies.push({x: 240, y: 152, vx: 1.4, minX: 230, maxX: 280, type: 'crawler', anim: 0});
+			enemies.push({x: 230, y: 50, vx: 1.1, minX: 220, maxX: 290, type: 'flyer', baseY: 50, anim: 0});
+			enemies.push({x: 360, y: 110, type: 'turret', timer: 0, anim: 0});
+		} else if (stage === 3) {
+			// Boss stage - still has crossing but boss is main
+			platforms.push({x: 0, y: 260, w: 180, h: 28, type: 'brick'});
+			platforms.push({x: 400, y: 260, w: 112, h: 28, type: 'brick'});
+			waterHazards.push({x: 180, y: 260, w: 220, h: 28});
+			platforms.push({x: 220, y: 200, w: 70, h: 16, type: 'metal'});
+			platforms.push({x: 320, y: 160, w: 60, h: 16, type: 'moving', minX: 300, maxX: 380, vx: 1.5});
+
+			if (season === 1) enemies.push({ x: 300, y: 210, w: 48, h: 36, hp: 6, maxHp: 6, type: 'boss1', vx: 1.6, anim: 0 });
+			else if (season === 2) enemies.push({ x: 280, y: 90, w: 50, h: 38, hp: 8, maxHp: 8, type: 'boss2', vx: 1.8, timer: 0, anim: 0 });
+			else if (season === 3) enemies.push({ x: 290, y: 200, w: 58, h: 42, hp: 10, maxHp: 10, type: 'boss3', vx: 1.1, timer: 0, anim: 0 });
+			else if (season === 4) enemies.push({ x: 300, y: 176, w: 54, h: 56, hp: 12, maxHp: 12, type: 'boss4', vx: 1.4, timer: 0, phase: 1, anim: 0 });
+		}
+		player.reset();
+	}
+
+	function checkCollisionX(p) {
+		for(let plat of platforms) {
+			if (p.x < plat.x + plat.w && p.x + p.w > plat.x &&
+				p.y < plat.y + plat.h && p.y + p.h > plat.y) {
+				if (p.vx > 0) p.x = plat.x - p.w;
+				if (p.vx < 0) p.x = plat.x + plat.w;
+			}
+		}
+	}
+
+	function hasBossAlive() {
+		return enemies.some(e => e.type && e.type.startsWith('boss'));
+	}
+
+	function checkCollisionY(p) {
+		for(let plat of platforms) {
+			if (p.x < plat.x + plat.w && p.x + p.w > plat.x &&
+				p.y < plat.y + plat.h && p.y + p.h > plat.y) {
+				if (p.vy > 0) {
+					p.y = plat.y - p.h;
+					p.vy = 0;
+					p.grounded = true;
+					if (plat.type === 'spring') { p.vy = -10; sfx.jump(); screenShake = 5; }
+					// Right shore exit — only if no boss is alive
+					if (plat.x >= 400 && p.x >= 410 && p.grounded && !hasBossAlive()) {
+						triggerLevelComplete();
+					}
+				} else if (p.vy < 0) { p.y = plat.y + plat.h; p.vy = 0; }
+			}
+		}
+		// Water / toxic river damage
+		for(let w of waterHazards) {
+			if (p.x + p.w > w.x + 4 && p.x < w.x + w.w - 4 && p.y + p.h > w.y + 2 && p.y < w.y + w.h) {
+				p.takeDamage(1);
+				p.x = 40; p.y = 180; p.vy = 0;
+				p.grounded = false;
+			}
+		}
+	}
+
+	function triggerLevelComplete() {
+		sfx.win(); bgm.stop();
+		let nextSeason = currentSeason;
+		let nextStage = currentStage + 1;
+		if (nextStage > 3) { nextStage = 1; nextSeason++; }
+
+		if (nextSeason <= 4) {
+			showCutscene(nextSeason, nextStage);
+		} else {
+			state = 'WIN';
+			const t = i18n[currentLangKey];
+			showEndScreen(t.winTitle, t.winDesc);
+		}
+	}
+
+	function showCutscene(season, stage) {
+		pendingSeasonAfterCutscene = season;
+		pendingStageAfterCutscene = stage;
+		state = 'CUTSCENE';
+		const t = i18n[currentLangKey];
+		document.getElementById('mainMenu').classList.add('hidden');
+		document.getElementById('shopMenu').classList.add('hidden');
+		document.getElementById('pauseMenu').classList.add('hidden');
+		document.getElementById('cutsceneMenu').classList.remove('hidden');
+
+		if (season === 1) { document.getElementById('csTitle').innerText = t.csIntroTitle; document.getElementById('csText').innerText = t.csIntroText; }
+		else if (season === 2) { document.getElementById('csTitle').innerText = t.csLvl2Title; document.getElementById('csText').innerText = t.csLvl2Text; }
+		else if (season === 3) { document.getElementById('csTitle').innerText = t.csLvl3Title; document.getElementById('csText').innerText = t.csLvl3Text; }
+		else if (season === 4) { document.getElementById('csTitle').innerText = t.csLvl4Title; document.getElementById('csText').innerText = t.csLvl4Text; }
+	}
+
+	function showEndScreen(title, desc) {
+		document.getElementById('endTitle').innerText = title;
+		document.getElementById('endDesc').innerText = desc;
+		document.getElementById('endGameMenu').classList.remove('hidden');
+	}
+
+	function update() {
+		if (state !== 'PLAYING') return;
+
+		if (screenShake > 0) screenShake--;
+		player.update();
+
+		for(let p of seasonParticles) {
+			p.y += p.speed;
+			if (currentSeason === 3) p.x -= 0.8;
+			if (p.y > 288) { p.y = 0; p.x = Math.random() * 512; }
+		}
+
+		for(let plat of platforms) {
+			if (plat.type === 'moving') {
+				plat.x += plat.vx;
+				if (plat.x < plat.minX || plat.x > plat.maxX) plat.vx *= -1;
+				if (player.grounded && player.x + player.w > plat.x && player.x < plat.x + plat.w && Math.abs((player.y + player.h) - plat.y) < 3) {
+					player.x += plat.vx;
+				}
+			}
+		}
+
+		for(let i = boxes.length - 1; i >= 0; i--) {
+			let b = boxes[i];
+			if (player.x < b.x + b.w && player.x + player.w > b.x && player.y < b.y + b.h && player.y + player.h > b.y) {
+				if (player.vy < 0) {
+					boxes.splice(i, 1);
+					coins.push({x: b.x + 7, y: b.y - 10});
+					createSparks(b.x, b.y, '#ffcc00');
+					sfx.coin();
+				}
+			}
+		}
+
+		for(let i = coins.length - 1; i >= 0; i--) {
+			let c = coins[i];
+			let dist = Math.hypot((player.x + player.w/2) - c.x, (player.y + player.h/2) - c.y);
+			if (hasMagnet && dist < 70) {
+				c.x += (player.x + player.w/2 > c.x ? 2 : -2);
+				c.y += (player.y + player.h/2 > c.y ? 2 : -2);
+			}
+			if (dist < 16) {
+				coins.splice(i, 1);
+				scoreCubes += 10;
+				sfx.coin();
+				createSparks(c.x, c.y, '#ffcc00');
+			}
+		}
+
+		for(let e of enemies) {
+			e.anim = (e.anim || 0) + 0.15;
+			if (e.type.startsWith('boss')) {
+				e.x += e.vx;
+				if (e.x < 200 || e.x > 420) e.vx *= -1;
+
+				if (e.type === 'boss2') {
+					e.timer++;
+					if (e.timer % 55 === 0) projectiles.push({x: e.x + 10, y: e.y + 20, vx: -3.2, vy: 0});
+				} else if (e.type === 'boss3') {
+					e.timer++;
+					if (e.timer % 90 === 0) {
+						projectiles.push({x: e.x, y: e.y + 15, vx: -2.5, vy: -1});
+						projectiles.push({x: e.x + e.w, y: e.y + 15, vx: 2.5, vy: -1});
+					}
+				} else if (e.type === 'boss4') {
+					e.timer++;
+					if (e.hp <= 6) e.phase = 2;
+					if (e.phase === 2 && e.timer % 60 === 0) {
+						projectiles.push({x: e.x + 10, y: e.y + 20, vx: -3.8, vy: 0});
+						projectiles.push({x: e.x + 30, y: e.y + 10, vx: -3.2, vy: 1.5});
+					}
+				}
+
+				if (e.dying) {
+					e.dying--;
+					e.anim += 0.4;
+					if (e.dying % 4 === 0) {
+						createSparks(e.x + e.w/2 + (Math.random()-0.5)*30, e.y + e.h/2 + (Math.random()-0.5)*20, '#ff0055');
+						createSparks(e.x + e.w/2 + (Math.random()-0.5)*20, e.y + (Math.random()-0.5)*15, '#ffcc00');
+					}
+					if (e.dying <= 0) {
+						enemies.splice(enemies.indexOf(e), 1);
+						sfx.win();
+						screenShake = 12;
+						for (let k = 0; k < 20; k++) createSparks(e.x + e.w/2, e.y + e.h/2, k % 2 ? '#ff0055' : '#00f3ff');
+					}
+					continue;
+				}
+				if (Math.abs((player.x + player.w/2) - (e.x + e.w/2)) < 28 && Math.abs((player.y + player.h/2) - (e.y + e.h/2)) < 28) {
+					if (player.vy > 0 && player.y + player.h < e.y + 22) {
+						e.hp--;
+						player.vy = -6.5;
+						sfx.hurt();
+						screenShake = 7;
+						createSparks(e.x + e.w/2, e.y, '#ff0055');
+						if (e.hp <= 0) {
+							e.dying = 45; // death animation frames
+							e.vx = 0;
+						}
+					} else { player.takeDamage(1); }
+				}
+			} else if (e.type === 'crawler') {
+				e.x += e.vx;
+				if (e.x < e.minX || e.x > e.maxX) e.vx *= -1;
+				if (Math.abs((player.x + player.w/2) - (e.x + 10)) < 15 && Math.abs((player.y + player.h/2) - (e.y + 8)) < 15) {
+					if (player.vy > 0 && player.y + player.h < e.y + 12) {
+						enemies.splice(enemies.indexOf(e), 1);
+						player.vy = -5; sfx.coin();
+						createSparks(e.x, e.y, '#ff0055');
+					} else player.takeDamage(1);
+				}
+			} else if (e.type === 'flyer') {
+				e.x += e.vx;
+				if (e.x < e.minX || e.x > e.maxX) e.vx *= -1;
+				e.y = e.baseY + Math.sin(Date.now() / 180) * 14;
+				if (Math.abs((player.x + player.w/2) - (e.x + 10)) < 15 && Math.abs((player.y + player.h/2) - (e.y + 9)) < 15) {
+					if (player.vy > 0 && player.y + player.h < e.y + 12) {
+						enemies.splice(enemies.indexOf(e), 1);
+						player.vy = -5; sfx.coin();
+						createSparks(e.x, e.y, '#ff0055');
+					} else player.takeDamage(1);
+				}
+			} else if (e.type === 'turret') {
+				e.timer++;
+				if (e.timer % 100 === 0) projectiles.push({x: e.x + 4, y: e.y + 6, vx: -2.8, vy: 0});
+			}
+		}
+
+		for(let i = projectiles.length - 1; i >= 0; i--) {
+			let pr = projectiles[i];
+			pr.x += pr.vx; pr.y += pr.vy;
+			if (pr.vy) pr.vy += 0.1; // gravity for some
+			if (Math.abs((player.x + player.w/2) - pr.x) < 12 && Math.abs((player.y + player.h/2) - pr.y) < 12) {
+				player.takeDamage(1);
+				projectiles.splice(i, 1);
+			} else if (pr.x < -10 || pr.x > 522 || pr.y > 300) projectiles.splice(i, 1);
+		}
+
+		for(let i = sparks.length - 1; i >= 0; i--) {
+			let s = sparks[i];
+			s.x += s.vx; s.y += s.vy; s.life--;
+			if (s.life <= 0) sparks.splice(i, 1);
+		}
+
+		document.getElementById('hudHp').innerText = "❤".repeat(Math.max(0, player.hp)) + (shieldCount > 0 ? " 🛡" : "");
+		document.getElementById('hudScore').innerText = String(scoreCubes).padStart(4, '0');
+	}
+
+	function drawEnemy(ctx, e) {
+		const t = e.anim || 0;
+		ctx.save();
+		ctx.translate(Math.round(e.x), Math.round(e.y));
+
+		// Death animation: flash + shake + shrink
+		if (e.dying) {
+			const shake = (Math.random() - 0.5) * 6;
+			ctx.translate(shake, shake);
+			if (Math.floor(e.dying / 3) % 2 === 0) {
+				ctx.globalAlpha = 0.4;
+			}
+			const scale = 0.7 + (e.dying / 45) * 0.3;
+			ctx.scale(scale, scale);
+		}
+
+		if (e.type === 'crawler') {
+			// Body - armored crawler with legs
+			const legOff = Math.sin(t * 3) * 2;
+			ctx.fillStyle = "#2a1a1a";
+			ctx.fillRect(0, 6, 20, 10);
+			ctx.fillStyle = "#ff0055";
+			ctx.fillRect(1, 7, 18, 3);
+			// Legs
+			ctx.fillStyle = "#444";
+			ctx.fillRect(-2, 14 + legOff, 6, 4);
+			ctx.fillRect(16, 14 - legOff, 6, 4);
+			ctx.fillRect(4, 15 - legOff, 5, 3);
+			ctx.fillRect(11, 15 + legOff, 5, 3);
+			// Head / sensor
+			ctx.fillStyle = "#111";
+			ctx.fillRect(4, 1, 12, 7);
+			// Angry red eyes
+			ctx.fillStyle = "#ff0000";
+			ctx.fillRect(5, 2, 4, 3);
+			ctx.fillRect(11, 2, 4, 3);
+			ctx.fillStyle = "#ffaaaa";
+			ctx.fillRect(6, 3, 2, 1);
+			ctx.fillRect(12, 3, 2, 1);
+			// Antenna
+			ctx.fillStyle = "#666";
+			ctx.fillRect(9, -2, 2, 4);
+			ctx.fillStyle = "#ff0055";
+			ctx.fillRect(8, -4, 4, 2);
+		} else if (e.type === 'flyer') {
+			// Flying drone with rotors
+			const rotor = Math.sin(t * 8) * 3;
+			ctx.fillStyle = "#1a1a2e";
+			ctx.fillRect(2, 6, 16, 8);
+			ctx.fillStyle = "#ffcc00";
+			ctx.fillRect(3, 7, 14, 2);
+			// Wings / rotors
+			ctx.fillStyle = "#00f3ff";
+			ctx.fillRect(-4 + rotor, 4, 10, 3);
+			ctx.fillRect(14 - rotor, 4, 10, 3);
+			// Body core
+			ctx.fillStyle = "#333";
+			ctx.fillRect(5, 2, 10, 6);
+			// Angry red eyes
+			ctx.fillStyle = "#ff0000";
+			ctx.fillRect(6, 3, 3, 3);
+			ctx.fillRect(11, 3, 3, 3);
+			ctx.fillStyle = "#ff6666";
+			ctx.fillRect(7, 4, 1, 1);
+			ctx.fillRect(12, 4, 1, 1);
+			// Thruster
+			ctx.fillStyle = Math.sin(t * 10) > 0 ? "#ff0055" : "#ffcc00";
+			ctx.fillRect(8, 14, 4, 3);
+		} else if (e.type === 'turret') {
+			// Ground turret
+			ctx.fillStyle = "#2a2a3a";
+			ctx.fillRect(0, 4, 16, 12);
+			ctx.fillStyle = "#555";
+			ctx.fillRect(2, 0, 12, 6);
+			// Barrel
+			ctx.fillStyle = "#111";
+			ctx.fillRect(-6, 3, 10, 4);
+			ctx.fillStyle = "#ff0055";
+			ctx.fillRect(-8, 4, 4, 2);
+			// Angry red eye / sensor
+			ctx.fillStyle = "#ff0000";
+			ctx.fillRect(5, 1, 6, 4);
+			ctx.fillStyle = "#ffaaaa";
+			ctx.fillRect(7, 2, 2, 2);
+			// Base glow
+			ctx.fillStyle = Math.sin(t * 2) > 0 ? "#ff0055" : "#880022";
+			ctx.fillRect(1, 14, 14, 2);
+		} else if (e.type === 'boss1') {
+			// Arachno-Mech - spider like
+			const legSwing = Math.sin(t * 2) * 4;
+			ctx.fillStyle = "#1a2a1a";
+			ctx.fillRect(8, 10, 32, 20);
+			ctx.fillStyle = "#39ff14";
+			ctx.fillRect(10, 12, 28, 4);
+			// Legs
+			ctx.fillStyle = "#2a3a2a";
+			for(let i=0; i<4; i++) {
+				ctx.fillRect(-4 + i*12, 26 + (i%2?legSwing:-legSwing), 8, 6);
+			}
+			// Head
+			ctx.fillStyle = "#111";
+			ctx.fillRect(12, 0, 24, 14);
+			// Multiple angry red eyes
+			ctx.fillStyle = "#ff0000";
+			ctx.fillRect(14, 3, 5, 5);
+			ctx.fillRect(22, 2, 6, 6);
+			ctx.fillRect(30, 3, 5, 5);
+			ctx.fillStyle = "#ff6666";
+			ctx.fillRect(15, 4, 3, 2);
+			ctx.fillRect(24, 4, 3, 2);
+			ctx.fillRect(31, 4, 3, 2);
+			// Mandibles
+			ctx.fillStyle = "#39ff14";
+			ctx.fillRect(10, 12, 4, 6);
+			ctx.fillRect(34, 12, 4, 6);
+		} else if (e.type === 'boss2') {
+			// Solar-Drone
+			const hover = Math.sin(t * 3) * 3;
+			ctx.translate(0, hover);
+			ctx.fillStyle = "#2a0a1a";
+			ctx.fillRect(5, 10, 40, 22);
+			ctx.fillStyle = "#ffcc00";
+			ctx.fillRect(8, 12, 34, 4);
+			// Solar panels
+			ctx.fillStyle = "#ff0055";
+			ctx.fillRect(-5, 8, 14, 8);
+			ctx.fillRect(41, 8, 14, 8);
+			// Core
+			ctx.fillStyle = "#111";
+			ctx.fillRect(15, 4, 20, 12);
+			// Angry red eyes
+			ctx.fillStyle = "#ff0000";
+			ctx.fillRect(17, 6, 6, 6);
+			ctx.fillRect(27, 6, 6, 6);
+			ctx.fillStyle = "#ffaaaa";
+			ctx.fillRect(19, 8, 2, 2);
+			ctx.fillRect(29, 8, 2, 2);
+			// Thrusters
+			ctx.fillStyle = Math.sin(t * 8) > 0 ? "#ff0055" : "#ffcc00";
+			ctx.fillRect(12, 32, 8, 5);
+			ctx.fillRect(30, 32, 8, 5);
+		} else if (e.type === 'boss3') {
+			// Titan-Crawler tank
+			const tread = Math.floor(t * 4) % 4;
+			ctx.fillStyle = "#2a1a0a";
+			ctx.fillRect(4, 12, 50, 24);
+			ctx.fillStyle = "#ff8c00";
+			ctx.fillRect(6, 14, 46, 5);
+			// Treads
+			ctx.fillStyle = "#111";
+			ctx.fillRect(0, 32, 58, 8);
+			ctx.fillStyle = "#555";
+			for(let i=0; i<8; i++) ctx.fillRect(2 + i*7 + tread, 34, 4, 4);
+			// Turret
+			ctx.fillStyle = "#1a1a1a";
+			ctx.fillRect(18, 0, 22, 16);
+			ctx.fillStyle = "#ff0055";
+			ctx.fillRect(-4, 4, 24, 6);
+			// Angry red eye
+			ctx.fillStyle = "#ff0000";
+			ctx.fillRect(22, 3, 10, 8);
+			ctx.fillStyle = "#ff6666";
+			ctx.fillRect(25, 5, 4, 4);
+			// Exhaust
+			ctx.fillStyle = Math.sin(t * 5) > 0 ? "#ff0055" : "#444";
+			ctx.fillRect(48, 8, 6, 8);
+		} else if (e.type === 'boss4') {
+			// Cyber-Mech Omega
+			const pulse = Math.sin(t * 4) * 2;
+			ctx.fillStyle = "#1a0a1a";
+			ctx.fillRect(6, 14, 42, 36);
+			ctx.fillStyle = "#ff0055";
+			ctx.fillRect(8, 16, 38, 6);
+			// Arms
+			ctx.fillStyle = "#2a1a2a";
+			ctx.fillRect(-6, 18 + pulse, 14, 10);
+			ctx.fillRect(46, 18 - pulse, 14, 10);
+			// Head
+			ctx.fillStyle = "#111";
+			ctx.fillRect(12, 0, 30, 18);
+			// Huge angry red eyes
+			ctx.fillStyle = "#ff0000";
+			ctx.fillRect(14, 4, 10, 10);
+			ctx.fillRect(30, 4, 10, 10);
+			ctx.fillStyle = "#ffaaaa";
+			ctx.fillRect(17, 7, 4, 4);
+			ctx.fillRect(33, 7, 4, 4);
+			// Core reactor
+			ctx.fillStyle = Math.sin(t * 6) > 0 ? "#00f3ff" : "#ff0055";
+			ctx.fillRect(20, 28, 14, 10);
+			// Legs
+			ctx.fillStyle = "#2a1a2a";
+			ctx.fillRect(10, 48, 12, 8);
+			ctx.fillRect(32, 48, 12, 8);
+		}
+		ctx.restore();
+	}
+
+	function render() {
+		ctx.save();
+		if (screenShake > 0) {
+			ctx.translate((Math.random() - 0.5) * screenShake, (Math.random() - 0.5) * screenShake);
+		}
+
+		let bgGrad = ctx.createLinearGradient(0, 0, 0, 288);
+		if (currentSeason === 1) {
+			bgGrad.addColorStop(0, "#082a1e"); bgGrad.addColorStop(0.5, "#144833"); bgGrad.addColorStop(1, "#0a1f24");
+		} else if (currentSeason === 2) {
+			bgGrad.addColorStop(0, "#38002a"); bgGrad.addColorStop(0.4, "#80004f"); bgGrad.addColorStop(1, "#260633");
+		} else if (currentSeason === 3) {
+			bgGrad.addColorStop(0, "#2e1208"); bgGrad.addColorStop(0.5, "#52220f"); bgGrad.addColorStop(1, "#1c110a");
+		} else if (currentSeason === 4) {
+			bgGrad.addColorStop(0, "#051a30"); bgGrad.addColorStop(0.5, "#0d3b66"); bgGrad.addColorStop(1, "#030f1e");
+		}
+		ctx.fillStyle = bgGrad;
+		ctx.fillRect(0, 0, 512, 288);
+
+		// Background buildings
+		ctx.fillStyle = "rgba(20, 25, 45, 0.75)";
+		ctx.fillRect(10, 60, 60, 200); ctx.fillRect(90, 30, 80, 230);
+		ctx.fillRect(230, 80, 70, 180); ctx.fillRect(370, 40, 90, 220);
+
+		// Water / toxic river
+		for(let w of waterHazards) {
+			ctx.fillStyle = currentSeason === 4 ? "rgba(0, 180, 255, 0.6)" : "rgba(0, 80, 120, 0.7)";
+			ctx.fillRect(w.x, w.y, w.w, w.h);
+			// Waves
+			ctx.fillStyle = "rgba(0, 243, 255, 0.3)";
+			for(let i=0; i<w.w; i+=12) {
+				ctx.fillRect(w.x + i + Math.sin(Date.now()/200 + i)*3, w.y, 6, 4);
+			}
+		}
+
+		// Ground glow
+		ctx.fillStyle = currentSeason === 4 ? "#00f3ff" : (currentSeason === 1 ? "#39ff14" : "#ff0055");
+		ctx.shadowColor = ctx.fillStyle; ctx.shadowBlur = 10;
+		ctx.fillRect(0, 268, 512, 20);
+		ctx.shadowBlur = 0;
+
+		for(let plat of platforms) {
+			if (plat.type === 'brick' || plat.type === 'moving') {
+				ctx.fillStyle = "#5d3831";
+				ctx.fillRect(plat.x, plat.y, plat.w, plat.h);
+				ctx.fillStyle = "#ff0055"; ctx.fillRect(plat.x, plat.y, plat.w, 3);
+				// Shore marker on right platforms
+				if (plat.x >= 400) {
+					ctx.fillStyle = "#39ff14";
+					ctx.fillRect(plat.x, plat.y - 8, plat.w, 4);
+					ctx.fillStyle = "#fff";
+					ctx.font = "8px Courier New";
+					ctx.fillText(i18n[currentLangKey].exitSign, plat.x + 8, plat.y - 10);
+				}
+			} else if (plat.type === 'metal' || plat.type === 'spring') {
+				ctx.fillStyle = plat.type === 'spring' ? "#ff0055" : "#4d5b70";
+				ctx.fillRect(plat.x, plat.y, plat.w, plat.h);
+				ctx.fillStyle = "#00f3ff"; ctx.fillRect(plat.x, plat.y + plat.h - 2, plat.w, 2);
+			}
+		}
+
+		for(let b of boxes) { ctx.fillStyle = "#c28827"; ctx.fillRect(b.x, b.y, b.w, b.h); }
+		ctx.fillStyle = "#ffcc00";
+		for(let c of coins) { ctx.fillRect(c.x - 4, c.y - 4, 8, 8); }
+
+		for(let e of enemies) {
+			drawEnemy(ctx, e);
+			// Boss HP bar
+			if (e.type.startsWith('boss')) {
+				ctx.fillStyle = "#000"; ctx.fillRect(e.x - 5, e.y - 14, e.w + 10, 6);
+				ctx.fillStyle = "#39ff14"; ctx.fillRect(e.x - 5, e.y - 14, (e.w + 10) * (e.hp / e.maxHp), 6);
+			}
+		}
+
+		for(let pr of projectiles) { 
+			ctx.fillStyle = "#ff0055"; 
+			ctx.fillRect(pr.x - 3, pr.y - 3, 6, 6); 
+			ctx.fillStyle = "#ffaaaa";
+			ctx.fillRect(pr.x - 1, pr.y - 1, 2, 2);
+		}
+
+		player.draw(ctx);
+
+		for(let s of sparks) { ctx.fillStyle = s.color; ctx.fillRect(s.x, s.y, 2, 2); }
+
+		ctx.fillStyle = currentSeason === 1 ? "#ffb7c5" : (currentSeason === 3 ? "#ff8c00" : "#ffffff");
+		for(let p of seasonParticles) ctx.fillRect(p.x, p.y, p.size, p.size);
+
+		ctx.restore();
+	}
+
+	function loop() {
+		try {
+			update();
+			render();
+		} catch (err) {
+			console.error('Game loop error:', err);
+		}
+		requestAnimationFrame(loop);
+	}
+
+	function startFromIntro() {
+		if (state !== 'INTRO') return;
+		try { sfx.init(); sfx.win(); } catch(e){}
+		const intro = document.getElementById('introScreen');
+		intro.style.opacity = '0';
+		setTimeout(() => {
+			intro.classList.add('hidden');
+			document.getElementById('mainMenu').classList.remove('hidden');
+			state = 'MENU';
+		}, 300);
+	}
+
+	document.getElementById('introScreen').addEventListener('click', startFromIntro);
+	document.getElementById('introScreen').addEventListener('touchend', (e) => {
+		e.preventDefault();
+		startFromIntro();
+	}, {passive: false});
+
+	window.addEventListener('keydown', e => {
+		if (state === 'INTRO') {
+			startFromIntro();
+			return;
+		}
+		sfx.init(); bgm.start();
+		if (e.code === 'ArrowLeft' || e.code === 'KeyA') keys.left = true;
+		if (e.code === 'ArrowRight' || e.code === 'KeyD') keys.right = true;
+		if (e.code === 'Space' || e.code === 'ArrowUp' || e.code === 'KeyW') {
+			if (!keys.jump) keys.jumpPressed = true;
+			keys.jump = true;
+		}
+		if (e.code === 'ShiftLeft' || e.code === 'ShiftRight') keys.dash = true;
+		if (e.code === 'KeyP' || e.code === 'Escape') togglePause();
+	});
+
+	window.addEventListener('keyup', e => {
+		if (e.code === 'ArrowLeft' || e.code === 'KeyA') keys.left = false;
+		if (e.code === 'ArrowRight' || e.code === 'KeyD') keys.right = false;
+		if (e.code === 'Space' || e.code === 'ArrowUp' || e.code === 'KeyW') keys.jump = false;
+	});
+
+	function setupTouchBtn(id, keyName) {
+		const btn = document.getElementById(id);
+		const handleStart = (e) => {
+			e.preventDefault(); sfx.init(); bgm.start();
+			if (keyName === 'jump') { if (!keys.jump) keys.jumpPressed = true; keys.jump = true; }
+			else keys[keyName] = true;
+			btn.classList.add('active');
+		};
+		const handleEnd = (e) => {
+			e.preventDefault();
+			if (keyName === 'jump') keys.jump = false;
+			else keys[keyName] = false;
+			btn.classList.remove('active');
+		};
+		btn.addEventListener('touchstart', handleStart); btn.addEventListener('touchend', handleEnd);
+		btn.addEventListener('mousedown', handleStart); btn.addEventListener('mouseup', handleEnd);
+	}
+
+	setupTouchBtn('btnLeft', 'left');
+	setupTouchBtn('btnRight', 'right');
+	setupTouchBtn('btnJump', 'jump');
+
+	function togglePause() {
+		if (state === 'PLAYING') {
+			state = 'PAUSED'; sfx.pause(); bgm.stop();
+			document.getElementById('pauseMenu').classList.remove('hidden');
+		} else if (state === 'PAUSED') {
+			state = 'PLAYING'; bgm.start();
+			document.getElementById('pauseMenu').classList.add('hidden');
+		}
+	}
+
+	document.getElementById('btnPause').addEventListener('click', togglePause);
+	document.getElementById('btnResume').addEventListener('click', togglePause);
+
+	document.getElementById('btnRestart').addEventListener('click', () => {
+		document.getElementById('pauseMenu').classList.add('hidden');
+		state = 'PLAYING'; bgm.start(); loadLevel(1, 1);
+	});
+
+	function startGameFromMenu() {
+		try {
+			sfx.init();
+			// First start: go directly into the game (skip extra click)
+			document.getElementById('mainMenu').classList.add('hidden');
+			document.getElementById('cutsceneMenu').classList.add('hidden');
+			document.getElementById('shopMenu').classList.add('hidden');
+			document.getElementById('pauseMenu').classList.add('hidden');
+			state = 'PLAYING';
+			bgm.start();
+			loadLevel(1, 1);
+		} catch (err) {
+			console.error('Start error:', err);
+			// Force start even if something fails
+			state = 'PLAYING';
+			loadLevel(1, 1);
+		}
+	}
+	document.getElementById('btnStartGame').addEventListener('click', startGameFromMenu);
+	document.getElementById('btnStartGame').addEventListener('touchend', (e) => {
+		e.preventDefault();
+		startGameFromMenu();
+	}, {passive: false});
+
+	function nextCutscene() {
+		if (state !== 'CUTSCENE') return;
+		try { sfx.coin(); } catch(e){}
+		document.getElementById('cutsceneMenu').classList.add('hidden');
+		if (pendingSeasonAfterCutscene === 1 && pendingStageAfterCutscene === 1) {
+			state = 'PLAYING';
+			bgm.start();
+			loadLevel(1, 1);
+		} else {
+			openShop(true);
+		}
+	}
+	document.getElementById('btnNextCutscene').addEventListener('click', nextCutscene);
+	document.getElementById('btnNextCutscene').addEventListener('touchend', (e) => {
+		e.preventDefault();
+		nextCutscene();
+	}, {passive: false});
+
+	function openShop(betweenLevels) {
+		isBetweenLevels = betweenLevels;
+		state = 'SHOP'; bgm.stop();
+		const t = i18n[currentLangKey];
+		document.getElementById('mainMenu').classList.add('hidden');
+		document.getElementById('pauseMenu').classList.add('hidden');
+		document.getElementById('cutsceneMenu').classList.add('hidden');
+		document.getElementById('shopMenu').classList.remove('hidden');
+		document.getElementById('shopCubes').innerText = scoreCubes;
+		document.getElementById('shopTitle').innerText = betweenLevels ? t.shopTitleComplete : t.shopTitle;
+		document.getElementById('btnCloseShop').innerText = betweenLevels ? t.continueBtn : t.backToMenuBtn;
+	}
+
+	document.getElementById('btnShop').addEventListener('click', () => openShop(false));
+
+	document.getElementById('btnCloseShop').addEventListener('click', () => {
+		document.getElementById('shopMenu').classList.add('hidden');
+		if (isBetweenLevels) {
+			isBetweenLevels = false; state = 'PLAYING'; bgm.start();
+			loadLevel(pendingSeasonAfterCutscene, pendingStageAfterCutscene);
+		} else {
+			document.getElementById('mainMenu').classList.remove('hidden'); state = 'MENU';
+		}
+	});
+
+	document.getElementById('upgHp').addEventListener('click', () => {
+		if (scoreCubes >= 100) { scoreCubes -= 100; maxHp++; player.hp = maxHp; document.getElementById('shopCubes').innerText = scoreCubes; sfx.coin(); }
+	});
+	document.getElementById('upgJump').addEventListener('click', () => {
+		if (scoreCubes >= 75) { scoreCubes -= 75; jumpPowerBonus += 0.5; player.jumpForce = -5.6 - jumpPowerBonus; document.getElementById('shopCubes').innerText = scoreCubes; sfx.coin(); }
+	});
+	document.getElementById('upgMag').addEventListener('click', () => {
+		if (scoreCubes >= 90 && !hasMagnet) { scoreCubes -= 90; hasMagnet = true; document.getElementById('shopCubes').innerText = scoreCubes; sfx.coin(); }
+	});
+	document.getElementById('upgShield').addEventListener('click', () => {
+		if (scoreCubes >= 120) { scoreCubes -= 120; shieldCount++; document.getElementById('shopCubes').innerText = scoreCubes; sfx.coin(); }
+	});
+
+	document.getElementById('btnNextSkin').addEventListener('click', () => {
+		currentSkinIdx = (currentSkinIdx + 1) % skins.length;
+		document.getElementById('skinName').innerText = skins[currentSkinIdx].name; sfx.coin();
+	});
+
+	document.getElementById('btnToggleLang').addEventListener('click', () => {
+		let idx = langKeysOrder.indexOf(currentLangKey);
+		currentLangKey = langKeysOrder[(idx + 1) % langKeysOrder.length];
+		applyLocalization(); sfx.coin();
+	});
+
+	document.getElementById('btnToggleCRT').addEventListener('click', (e) => {
+		const crt = document.getElementById('crtOverlay');
+		crt.classList.toggle('disabled');
+		const t = i18n[currentLangKey];
+		e.target.innerText = crt.classList.contains('disabled') ? t.crtOff : t.crtOn;
+	});
+
+	document.getElementById('btnFull').addEventListener('click', () => {
+		const elem = document.getElementById('game-wrapper');
+		if (!document.fullscreenElement && !document.webkitFullscreenElement) {
+			if (elem.requestFullscreen) elem.requestFullscreen();
+			else if (elem.webkitRequestFullscreen) elem.webkitRequestFullscreen();
+		} else {
+			if (document.exitFullscreen) document.exitFullscreen();
+			else if (document.webkitExitFullscreen) document.webkitExitFullscreen();
+		}
+	});
+
+	document.getElementById('btnRestartGame').addEventListener('click', () => {
+		document.getElementById('endGameMenu').classList.add('hidden');
+		document.getElementById('mainMenu').classList.remove('hidden'); state = 'MENU';
+	});
+
+	applyLocalization();
+	loop();
+</script>
+</body>
+</html>
